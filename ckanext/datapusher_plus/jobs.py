@@ -307,6 +307,23 @@ def push_to_datastore(input, task_id, dry_run=False):
         return _push_to_datastore(task_id, input, dry_run=dry_run, temp_dir=temp_dir)
 
 
+def _log_command_error(details, logger, e):
+    """ Log an error from a subprocess command """
+    if not isinstance(e, subprocess.CalledProcessError):
+        logger.error(f"Error. {details}  {e}")
+        return
+    command = e.cmd
+    output = e.output
+    returncode = e.returncode
+    stderr = e.stderr
+    logger.error(
+        f"Error {details} running command: {command}.\n"
+        f"Return code: {returncode}.\n"
+        f"Output: {output}.\n"
+        f"Stderr: {stderr}"
+    )
+
+
 def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
     # add job to dn  (datapusher_plus_jobs table)
     try:
@@ -339,6 +356,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             text=True,
         )
     except subprocess.CalledProcessError as e:
+        _log_command_error("qsv version check error", logger, e)
         raise utils.JobError("qsv version check error: {}".format(e))
     qsv_version_info = str(qsv_version.stdout)
     if not qsv_version_info:
@@ -575,9 +593,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                 text=True,
             )
         except subprocess.CalledProcessError as e:
-            logger.error(
-                "Upload aborted. Cannot export spreadsheet(?) to CSV: {}".format(e)
-            )
+            _log_command_error("Upload aborted. Cannot export spreadsheet(?) to CSV", logger, e)
 
             # it had a spreadsheet extension but `qsv excel` failed,
             # get some file info and log it by running `file`
@@ -652,7 +668,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                     check=True,
                 )
             except subprocess.CalledProcessError as e:
-                logger.error(f"Job aborted as the file cannot be re-encoded to UTF-8. {e.stderr}")
+                _log_command_error("Job aborted as the file cannot be re-encoded to UTF-8", logger, e)
                 return
             f = open(qsv_input_utf_8_encoded_csv, "wb")
             f.write(cmd.stdout)
@@ -675,10 +691,9 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             )
         except subprocess.CalledProcessError as e:
             # return as we can't push an invalid CSV file
-            logger.error(
-                f"Job aborted as the file cannot be normalized/transcoded: {e.stderr}"
-            )
+            _log_command_error("Job aborted as the file cannot be normalized/transcoded", logger, e)
             return
+
         tmp = qsv_input_csv
         logger.info("Normalized & transcoded...")
 
@@ -694,9 +709,9 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         )
     except subprocess.CalledProcessError as e:
         # return as we can't push an invalid CSV file
-        validate_error_msg = e.stderr
-        logger.error("Invalid CSV! Job aborted: {}.".format(validate_error_msg))
+        _log_command_error("Invalid CSV! Job aborted", logger, e)
         return
+
     logger.info("Well-formed, valid CSV file confirmed...")
 
     # --------------------- Sortcheck --------------------------
@@ -715,7 +730,8 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                 text=True,
             )
         except subprocess.CalledProcessError as e:
-            raise utils.JobError("Sortcheck error: {}".format(e.stderr))
+            _log_command_error("Sortcheck error", logger, e)
+
         sortcheck_json = json.loads(str(qsv_sortcheck.stdout))
         is_sorted = sortcheck_json["sorted"]
         record_count = int(sortcheck_json["record_count"])
@@ -772,7 +788,9 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             text=True,
         )
     except subprocess.CalledProcessError as e:
+        _log_command_error("Cannot scan CSV headers", logger, e)
         raise utils.JobError("Cannot scan CSV headers: {}".format(e.stderr))
+
     original_headers = str(qsv_headers.stdout).strip()
     original_header_dict = {
         idx: ele for idx, ele in enumerate(original_headers.splitlines())
@@ -797,6 +815,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             text=True,
         )
     except subprocess.CalledProcessError as e:
+        _log_command_error("Safenames error", logger, e)
         raise utils.JobError("Safenames error: {}".format(e.stderr))
 
     unsafe_json = json.loads(str(qsv_safenames.stdout))
@@ -845,6 +864,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                 [qsv_bin, "count", tmp], capture_output=True, check=True, text=True
             )
         except subprocess.CalledProcessError as e:
+            _log_command_error("Cannot count records in CSV", logger, e)
             raise utils.JobError("Cannot count records in CSV: {}".format(e))
         record_count = int(str(qsv_count.stdout).strip())
 
@@ -890,6 +910,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
     try:
         qsv_stats = subprocess.run(qsv_stats_cmd, check=True)
     except subprocess.CalledProcessError as e:
+        _log_command_error("Cannot infer data types and compile statistics", logger, e)
         raise utils.JobError(
             "Cannot infer data types and compile statistics: {}".format(e)
         )
@@ -1010,6 +1031,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                     check=True,
                 )
             except subprocess.CalledProcessError as e:
+                _log_command_error("Cannot create a preview slice", logger, e)
                 raise utils.JobError("Cannot create a preview slice: {}".format(e))
             rows_to_copy = preview_rows
             tmp = qsv_slice_csv
@@ -1036,6 +1058,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                     check=True,
                 )
             except subprocess.CalledProcessError as e:
+                _log_command_error("Cannot create a preview slice from the end", logger, e)
                 raise utils.JobError(
                     "Cannot create a preview slice from the end: {}".format(e)
                 )
@@ -1067,6 +1090,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         try:
             qsv_applydp = subprocess.run(qsv_applydp_cmd, check=True)
         except subprocess.CalledProcessError as e:
+            _log_command_error("Applydp error", logger, e)
             raise utils.JobError("Applydp error: {}".format(e))
         tmp = qsv_applydp_csv
 
@@ -1158,6 +1182,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                     text=True,
                 )
             except subprocess.CalledProcessError as e:
+                _log_command_error("Cannot search CSV for PII", logger, e)
                 raise utils.JobError("Cannot search CSV for PII: {}".format(e))
             pii_json = json.loads(str(qsv_searchset.stderr))
             pii_total_matches = int(pii_json["total_matches"])
@@ -1234,6 +1259,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                     text=True,
                 )
             except subprocess.CalledProcessError as e:
+                _log_command_error("Cannot run stats on PII preview CSV", logger, e)
                 raise utils.JobError(
                     "Cannot run stats on PII preview CSV: {}".format(e)
                 )
@@ -1555,6 +1581,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                 text=True,
             )
         except subprocess.CalledProcessError as e:
+            _log_command_error("Cannot run stats on CSV stats", logger, e)
             raise utils.JobError("Cannot run stats on CSV stats: {}".format(e))
 
         stats_stats = str(qsv_stats_stats.stdout).strip()
