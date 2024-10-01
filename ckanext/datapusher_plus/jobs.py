@@ -676,7 +676,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         except subprocess.CalledProcessError as e:
             # return as we can't push an invalid CSV file
             logger.error(
-                "Job aborted as the file cannot be normalized/transcoded: {}.".format(e)
+                f"Job aborted as the file cannot be normalized/transcoded: {e.stderr}"
             )
             return
         tmp = qsv_input_csv
@@ -715,7 +715,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                 text=True,
             )
         except subprocess.CalledProcessError as e:
-            raise utils.JobError("Sortcheck error: {}".format(e))
+            raise utils.JobError("Sortcheck error: {}".format(e.stderr))
         sortcheck_json = json.loads(str(qsv_sortcheck.stdout))
         is_sorted = sortcheck_json["sorted"]
         record_count = int(sortcheck_json["record_count"])
@@ -749,7 +749,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                 text=True,
             )
         except subprocess.CalledProcessError as e:
-            raise utils.JobError("Check for duplicates error: {}".format(e))
+            raise utils.JobError("Check for duplicates error: {}".format(e.stderr))
         dupe_count = int(str(qsv_dedup.stderr).strip())
         if dupe_count > 0:
             tmp = qsv_dedup_csv
@@ -772,7 +772,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        raise utils.JobError("Cannot scan CSV headers: {}".format(e))
+        raise utils.JobError("Cannot scan CSV headers: {}".format(e.stderr))
     original_headers = str(qsv_headers.stdout).strip()
     original_header_dict = {
         idx: ele for idx, ele in enumerate(original_headers.splitlines())
@@ -797,7 +797,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        raise utils.JobError("Safenames error: {}".format(e))
+        raise utils.JobError("Safenames error: {}".format(e.stderr))
 
     unsafe_json = json.loads(str(qsv_safenames.stdout))
     unsafe_headers = unsafe_json["unsafe_headers"]
