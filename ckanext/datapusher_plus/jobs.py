@@ -312,15 +312,16 @@ def _log_command_error(details, logger, e):
     if not isinstance(e, subprocess.CalledProcessError):
         logger.error(f"Error. {details}  {e}")
         return
-    command = e.cmd
-    output = e.output
+
+    command = ' '.join(e.cmd)
+    output = e.output.decode('utf-8') if e.output else ''
+    stdout = e.stdout.decode('utf-8') if e.stdout else ''
+    stderr = e.stderr.decode('utf-8') if e.stderr else ''
     returncode = e.returncode
-    stderr = e.stderr
+
     logger.error(
-        f"Error {details} running command: {command}.\n"
-        f"Return code: {returncode}.\n"
-        f"Output: {output}.\n"
-        f"Stderr: {stderr}"
+        f"Error [code: {returncode}]: {details} running command: {command}.\n"
+        f"{stderr} {output} {stdout}"
     )
 
 
@@ -677,6 +678,8 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
 
         else:
             qsv_input_utf_8_encoded_csv = tmp
+
+        logger.info("Normalizing & transcoding ...")
         try:
             qsv_input = subprocess.run(
                 [
@@ -688,6 +691,9 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                     qsv_input_csv,
                 ],
                 check=True,
+                # Without this two lines, we see the output in the terminal but not in the logs
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
             )
         except subprocess.CalledProcessError as e:
             # return as we can't push an invalid CSV file
