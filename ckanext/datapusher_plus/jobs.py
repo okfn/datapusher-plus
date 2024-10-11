@@ -370,7 +370,12 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             )
     qsv_semver = qsv_version_info[
         qsv_version_info.find(" "): qsv_version_info.find("-")].lstrip()
-    logger.info("qsv version found: {}".format(qsv_semver))
+
+    sniff_enabled = os.getenv("QSV_SNIFF_DELIMITER")
+    logger.info(f"qsv version found: {qsv_semver}. Sniff: {sniff_enabled}")
+    # HOTFIX, we failed to set the sniff delimiter env var
+    if not sniff_enabled:
+        os.environ["QSV_SNIFF_DELIMITER"] = "true"
     try:
         if semver.compare(qsv_semver, MINIMUM_QSV_VERSION) < 0:
             raise utils.JobError(
