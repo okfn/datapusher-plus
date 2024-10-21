@@ -314,9 +314,9 @@ def _log_command_error(details, logger, e):
         return
 
     command = ' '.join(e.cmd)
-    output = e.output.decode('utf-8') if e.output else ''
-    stdout = e.stdout.decode('utf-8') if e.stdout else ''
-    stderr = e.stderr.decode('utf-8') if e.stderr else ''
+    output = e.output if e.output else ''
+    stdout = e.stdout if e.stdout else ''
+    stderr = e.stderr if e.stderr else ''
     returncode = e.returncode
 
     logger.error(
