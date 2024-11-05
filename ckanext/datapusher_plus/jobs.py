@@ -373,9 +373,6 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
 
     sniff_enabled = os.getenv("QSV_SNIFF_DELIMITER")
     logger.info(f"qsv version found: {qsv_semver}. Sniff: {sniff_enabled}")
-    # HOTFIX, we failed to set the sniff delimiter env var
-    if not sniff_enabled:
-        os.environ["QSV_SNIFF_DELIMITER"] = "true"
     try:
         if semver.compare(qsv_semver, MINIMUM_QSV_VERSION) < 0:
             raise utils.JobError(
@@ -445,6 +442,9 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             kwargs["proxies"] = {"http": DOWNLOAD_PROXY, "https": DOWNLOAD_PROXY}
         with requests.get(resource_url, **kwargs) as response:
             response.raise_for_status()
+            logger.info('\n\n\n\nRESPONSE\n\n\n\n')
+            logger.info(f"Response status code: {response.status_code}")
+            logger.info(f"Response content {response.content}")
 
             cl = response.headers.get("content-length")
             max_content_length = int(tk.config.get("ckanext.datapusher_plus.max_content_length"))
@@ -568,10 +568,14 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
     spreadsheet_extensions = ["XLS", "XLSX", "ODS", "XLSM", "XLSB"]
     format = resource.get("format").upper()
     if format in spreadsheet_extensions:
+        # Sniffer fails for XLSX files
+        if not sniff_enabled:
+            os.environ["QSV_SNIFF_DELIMITER"] = "false"
+    
         # if so, export spreadsheet as a CSV file
-        default_excel_sheet = tk.config.get("DEFAULT_EXCEL_SHEET")
+        default_excel_sheet = tk.config.get("ckanext.datapusher_plus.default_excel_sheet", 0)
         logger.info(
-            "Converting {} sheet {} to CSV...".format(format, default_excel_sheet)
+            "Converting {} sheet '{}' to CSV...".format(format, default_excel_sheet)
         )
         # first, we need a temporary spreadsheet filename with the right file extension
         # we only need the filename though, that's why we remove it
@@ -630,6 +634,9 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         # Note that we only change the workfile, the resource file itself is unchanged.
 
         # ------------------- Normalize to CSV ---------------------
+        # Sniffer works for CSV
+        if not sniff_enabled:
+            os.environ["QSV_SNIFF_DELIMITER"] = "true"
         qsv_input_csv = os.path.join(temp_dir, 'qsv_input.csv')
         # if resource_format is CSV we don't need to normalize
         if resource_format.upper() == "CSV":
