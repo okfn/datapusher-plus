@@ -442,9 +442,6 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             kwargs["proxies"] = {"http": DOWNLOAD_PROXY, "https": DOWNLOAD_PROXY}
         with requests.get(resource_url, **kwargs) as response:
             response.raise_for_status()
-            logger.info('\n\n\n\nRESPONSE\n\n\n\n')
-            logger.info(f"Response status code: {response.status_code}")
-            logger.info(f"Response content {response.content}")
 
             cl = response.headers.get("content-length")
             max_content_length = int(tk.config.get("ckanext.datapusher_plus.max_content_length"))
