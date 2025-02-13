@@ -568,7 +568,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         # Sniffer fails for XLSX files
         if not sniff_enabled:
             os.environ["QSV_SNIFF_DELIMITER"] = "false"
-    
+
         # if so, export spreadsheet as a CSV file
         default_excel_sheet = tk.config.get("ckanext.datapusher_plus.default_excel_sheet", 0)
         logger.info(
@@ -696,6 +696,8 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
                     "input",
                     tmp,
                     "--trim-headers",
+                    # Default quoting style is "necessary" but it fails unexpectedly
+                    "--quote-style", "nonnumeric",
                     "--output",
                     qsv_input_csv,
                 ],
