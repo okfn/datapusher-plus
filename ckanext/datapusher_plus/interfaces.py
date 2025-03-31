@@ -53,3 +53,7 @@ class IDataPusher(Interface):
             the resource that was uploaded
         """
         pass
+
+    def datastore_column_changed(self, changes, old_headers, new_headers):
+        """ While we are updating the datastore, we detect column changes """
+        pass
