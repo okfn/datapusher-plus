@@ -53,6 +53,9 @@ setup(
     # simple. Or you can use find_packages().
     packages=find_packages(exclude=['tests*']),
 
+    # For pip install to include all files listed in MANIFEST.in
+    include_package_data=True,
+
     # setup_requires=['wheel'],
     # List run-time dependencies here.  These will be installed by pip when your
     # project is installed. For an analysis of "install_requires" vs pip's
