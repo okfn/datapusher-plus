@@ -1019,7 +1019,11 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
 
     # Notify plugins the datastore will be updated
     for plugin in plugins.PluginImplementations(interfaces.IDataPusher):
-        plugin.datastore_before_update(existing_info=existing_info, new_headers=headers_dicts)
+        plugin.datastore_before_update(
+            resource_id=resource_id,
+            existing_info=existing_info,
+            new_headers=headers_dicts,
+        )
 
     logger.info(
         "Determined headers and types: {headers}...".format(headers=headers_dicts)

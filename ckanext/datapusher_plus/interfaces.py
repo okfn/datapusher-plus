@@ -54,7 +54,7 @@ class IDataPusher(Interface):
         """
         pass
 
-    def datastore_before_update(self, existing_info, new_headers):
+    def datastore_before_update(self, resource_id, existing_info, new_headers):
         """ We are about to update the datastore
 
             :param existing_info: The existing information in the datastore.
