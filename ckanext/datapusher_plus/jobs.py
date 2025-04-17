@@ -153,7 +153,7 @@ def send_resource_to_datastore(
     """
     Stores records in CKAN datastore
     """
-    log.info(f"\n\nSending data to datastore {resource_id}\n{headers}\n")
+    log.info(f"Sending data to datastore {resource_id}")
 
     if resource_id:
         # used to create the "main" resource
@@ -1016,30 +1016,10 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
     # Maintain data dictionaries from matching column names
     # if data dictionary already exists for this resource as
     # we want to preserve the user's data dictionary curations
-    # Also, detect column changes
-    changed = []
-    if existing_info:
-        for h in headers_dicts:
-            if h["id"] in existing_info:
-                h["info"] = existing_info[h["id"]]
-                # create columns with types user requested
-                type_override = existing_info[h["id"]].get("type_override")
-                if type_override in list(type_mapping.values()):
-                    h["type"] = type_override
-            else:
-                # new column
-                changed.append({'new': h["id"]})
 
-        new_headers_ids = [h["id"] for h in headers_dicts]
-        for ei in existing_info:
-            if ei not in new_headers_ids:
-                # deleted column
-                changed.append({'deleted': ei})
-
-    # send all plugins the column_changes
-    if changed:
-        for plugin in plugins.PluginImplementations(interfaces.IDataPusher):
-            plugin.datastore_column_changed(changed, old_headers=existing_info, new_headers=headers_dicts)
+    # Notify plugins the datastore will be updated
+    for plugin in plugins.PluginImplementations(interfaces.IDataPusher):
+        plugin.datastore_before_update(existing_info=existing_info, new_headers=headers_dicts)
 
     logger.info(
         "Determined headers and types: {headers}...".format(headers=headers_dicts)
