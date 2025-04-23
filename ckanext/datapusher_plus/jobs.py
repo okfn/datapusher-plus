@@ -343,6 +343,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
+    logger.info(f"_push_to_datastore :: {input}")
     # check if QSV_BIN and FILE_BIN exists
     qsv_bin = tk.config.get("ckanext.datapusher_plus.qsv_bin")
     qsv_path = Path(qsv_bin)
@@ -446,6 +447,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         if USE_PROXY:
             kwargs["proxies"] = {"http": DOWNLOAD_PROXY, "https": DOWNLOAD_PROXY}
         with requests.get(resource_url, **kwargs) as response:
+            logger.info(f"Response status {response.status_code} for {resource_url}")
             response.raise_for_status()
 
             cl = response.headers.get("content-length")

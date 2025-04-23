@@ -84,8 +84,9 @@ def get_dp_plus_user_apitoken():
     if api_token:
         return api_token
 
-    site_user = tk.get_action("get_site_user")({"ignore_auth": True}, {})
-    return site_user["apikey"]
+    raise Exception(
+        "No API token found. Please set the ckanext.datapusher_plus.api_token config option."
+    )
 
 
 def check_response(
