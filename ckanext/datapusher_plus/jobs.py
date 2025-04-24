@@ -343,7 +343,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
-    logger.info(f"_push_to_datastore :: {input}")
+    logger.info(f"_push_to_datastore :: {task_id}")
     # check if QSV_BIN and FILE_BIN exists
     qsv_bin = tk.config.get("ckanext.datapusher_plus.qsv_bin")
     qsv_path = Path(qsv_bin)
@@ -1015,10 +1015,6 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         info_dict = dict(label=original_header_dict.get(idx, "Unnamed Column"))
         headers_dicts.append(dict(id=header["id"], type=header_type, info=info_dict))
 
-    # Maintain data dictionaries from matching column names
-    # if data dictionary already exists for this resource as
-    # we want to preserve the user's data dictionary curations
-
     # Notify plugins the datastore will be updated
     for plugin in plugins.PluginImplementations(interfaces.IDataPusher):
         plugin.datastore_before_update(
@@ -1026,6 +1022,18 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             existing_info=existing_info,
             new_headers=headers_dicts,
         )
+
+    # Maintain data dictionaries from matching column names
+    # if data dictionary already exists for this resource as
+    # we want to preserve the user's data dictionary curations
+    if existing_info:
+        for h in headers_dicts:
+            if h["id"] in existing_info:
+                h["info"] = existing_info[h["id"]]
+                # create columns with types user requested
+                type_override = existing_info[h["id"]].get("type_override")
+                if type_override in list(type_mapping.values()):
+                    h["type"] = type_override
 
     logger.info(
         "Determined headers and types: {headers}...".format(headers=headers_dicts)
