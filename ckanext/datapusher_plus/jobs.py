@@ -46,12 +46,16 @@ from psycopg2 import sql
 from dateutil.parser import parse as parsedate
 
 from rq import get_current_job
+from ckan import plugins
 import ckan.plugins.toolkit as tk
 
 
 import ckanext.datapusher_plus.utils as utils
 import ckanext.datapusher_plus.helpers as dph
 # from ckanext.datapusher_plus.config import config
+from ckanext.datapusher_plus import interfaces
+
+log = logging.getLogger(__name__)
 
 
 if locale.getdefaultlocale()[0]:
@@ -149,6 +153,7 @@ def send_resource_to_datastore(
     """
     Stores records in CKAN datastore
     """
+    log.info(f"Sending data to datastore {resource_id}")
 
     if resource_id:
         # used to create the "main" resource
@@ -338,6 +343,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
+    logger.info(f"_push_to_datastore :: {task_id}")
     # check if QSV_BIN and FILE_BIN exists
     qsv_bin = tk.config.get("ckanext.datapusher_plus.qsv_bin")
     qsv_path = Path(qsv_bin)
@@ -441,6 +447,7 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
         if USE_PROXY:
             kwargs["proxies"] = {"http": DOWNLOAD_PROXY, "https": DOWNLOAD_PROXY}
         with requests.get(resource_url, **kwargs) as response:
+            logger.info(f"Response status {response.status_code} for {resource_url}")
             response.raise_for_status()
 
             cl = response.headers.get("content-length")
@@ -1007,6 +1014,14 @@ def _push_to_datastore(task_id, input, dry_run=False, temp_dir=None):
             datetimecols_list.append(header["id"])
         info_dict = dict(label=original_header_dict.get(idx, "Unnamed Column"))
         headers_dicts.append(dict(id=header["id"], type=header_type, info=info_dict))
+
+    # Notify plugins the datastore will be updated
+    for plugin in plugins.PluginImplementations(interfaces.IDataPusher):
+        plugin.datastore_before_update(
+            resource_id=resource_id,
+            existing_info=existing_info,
+            new_headers=headers_dicts,
+        )
 
     # Maintain data dictionaries from matching column names
     # if data dictionary already exists for this resource as

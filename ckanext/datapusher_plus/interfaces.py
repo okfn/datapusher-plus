@@ -53,3 +53,25 @@ class IDataPusher(Interface):
             the resource that was uploaded
         """
         pass
+
+    def datastore_before_update(self, resource_id, existing_info, new_headers):
+        """ We are about to update the datastore
+
+            :param existing_info: The existing information in the datastore.
+            Empty if the resource is new.
+            Something like:
+                {
+                'Header 1': {'label': 'Header 1'},
+                'Header 2': {'label': 'Header 2'},
+                ...
+                }
+
+            :param new_headers: The new headers that are to be added to the datastore.
+            Something like:
+                [
+                {'id': 'Header 1', 'type': 'text', 'info': {'label': 'Header 1'}},
+                {'id': 'Header 2', 'type': 'numeric', 'info': {'label': 'Header 2'}},
+                ...
+                ]
+        """
+        pass
